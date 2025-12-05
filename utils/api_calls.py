@@ -161,12 +161,36 @@ def aggregate_all_data(company_name: str) -> Dict[str, Any]:
     """
     print(f"Starting comprehensive data collection for: {company_name}")
     
+    # Validate API key exists
+    if not os.getenv("TAVILY_API_KEY"):
+        raise ValueError("TAVILY_API_KEY not found in environment variables")
+    
     all_data = {
         "company_name": company_name,
         "comprehensive_search": search_company_comprehensive(company_name),
         "recent_news": get_recent_news(company_name),
         "social_media": search_social_media_specific(company_name),
-        "executives": search_executives(company_name)
+        "executives": search_executives(company_name),
+        "data_found": False,
+        "total_results": 0
     }
+    
+    # Calculate total results found
+    total_results = (
+        len(all_data["comprehensive_search"].get("general_search", [])) +
+        len(all_data["comprehensive_search"].get("news_search", [])) +
+        len(all_data["comprehensive_search"].get("legal_regulatory", [])) +
+        len(all_data["recent_news"]) +
+        sum(len(v) for v in all_data["social_media"].values())
+    )
+    
+    all_data["total_results"] = total_results
+    all_data["data_found"] = total_results > 0
+    
+    # Warn if no data found
+    if total_results == 0:
+        print(f"⚠️ WARNING: No data found for company '{company_name}'. Company may not exist or name may be incorrect.")
+    else:
+        print(f"✅ Found {total_results} data points for {company_name}")
     
     return all_data

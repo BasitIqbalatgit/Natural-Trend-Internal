@@ -4,6 +4,7 @@ from datetime import datetime
 from utils.api_calls import aggregate_all_data
 from utils.langgraph_workflow import run_vetting_analysis
 from utils.pdf_generator import create_pdf_report
+from utils.validators import validate_api_keys, validate_company_name, validate_before_analysis, estimate_token_cost
 import os
 
 # Page Configuration
@@ -72,6 +73,12 @@ st.markdown("""
 
 # Main Header
 st.markdown('<h1 class="main-header">🔍 AI-Powered Client Vetting & Brand-Safety Tool</h1>', unsafe_allow_html=True)
+
+# Check API Keys on Startup
+api_keys_valid, api_key_msg = validate_api_keys()
+if not api_keys_valid:
+    st.error(api_key_msg)
+    st.stop()
 
 # Sidebar Information
 with st.sidebar:
@@ -157,6 +164,23 @@ if vet_button:
     if not company_name:
         st.error("⚠️ Please enter a company name to proceed.")
     else:
+        # STEP 0: Validate company name BEFORE any API calls
+        name_valid, error_type, validation_msg = validate_company_name(company_name)
+        
+        if not name_valid:
+            st.error(validation_msg)
+            
+            # If it's possibly a personal name, offer a way to proceed anyway
+            if error_type == "possible_personal_name":
+                col1, col2, col3 = st.columns([1, 1, 1])
+                with col2:
+                    if st.button("✅ This IS a Company - Proceed", key="override_validation"):
+                        st.info("Proceeding with analysis...")
+                    else:
+                        st.stop()
+            else:
+                st.stop()
+        
         st.session_state.vetting_complete = False
         st.session_state.company_name = company_name
         
@@ -180,8 +204,30 @@ if vet_button:
                 
                 # Collect all data
                 raw_data = aggregate_all_data(company_name)
+                
+                # Check if company data was found
+                if not raw_data.get('data_found', False):
+                    st.warning(f"⚠️ **Warning:** No or very limited data found for '{company_name}'.")
+                    st.info("""
+                    **Possible reasons:**
+                    - Company name may be misspelled
+                    - Company may not exist or be very small/private
+                    - Company may operate under a different legal name
+                    
+                    **Suggestions:**
+                    - Try the full legal company name
+                    - Check for common variations or abbreviations
+                    - Verify the company exists before proceeding
+                    """)
+                    
+                    # Ask user if they want to continue
+                    col1, col2, col3 = st.columns([1, 1, 1])
+                    with col2:
+                        if not st.button("🔄 Continue Anyway", key="continue_no_data"):
+                            st.stop()
+                
                 progress_bar.progress(30)
-                status_text.text("✅ Step 1/4: Data collection complete!")
+                status_text.text(f"✅ Step 1/4: Data collection complete! ({raw_data.get('total_results', 0)} results found)")
                 time.sleep(0.5)
                 
                 # Step 2: AI Analysis with LangGraph

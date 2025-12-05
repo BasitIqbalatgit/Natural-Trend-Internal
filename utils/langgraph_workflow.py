@@ -291,6 +291,49 @@ def run_vetting_analysis(company_name: str, raw_data: Dict[str, Any]) -> Dict[st
     print(f"🚀 Starting AI-Powered Vetting for: {company_name}")
     print(f"{'='*60}\n")
     
+    # Validate OpenAI API key
+    if not os.getenv("OPENAI_API_KEY"):
+        raise ValueError("OPENAI_API_KEY not found in environment variables")
+    
+    # Check if sufficient data exists
+    total_results = raw_data.get('total_results', 0)
+    data_found = raw_data.get('data_found', False)
+    
+    if not data_found or total_results < 3:
+        print(f"⚠️ WARNING: Limited data available ({total_results} results). Analysis may be incomplete.")
+        # Create a limited report for companies with no data
+        return VettingState(
+            company_name=company_name,
+            raw_data=raw_data,
+            extracted_entities={"note": "Insufficient data for entity extraction"},
+            risk_analysis={
+                "analysis": f"**INSUFFICIENT DATA WARNING**: Only {total_results} data points found for '{company_name}'. "
+                           f"This company may not exist, may be too small/private, or the name may be incorrect. "
+                           f"**Recommendation**: REQUIRES MANUAL REVIEW - Verify company existence and spelling before proceeding.",
+                "negative_items_found": 0,
+                "processed": True
+            },
+            pg_questions_answered={
+                "answers": "**INSUFFICIENT DATA**: Unable to answer P&G questions due to lack of information. Manual vetting required.",
+                "processed": False
+            },
+            final_report={
+                "executive_summary": f"## ⚠️ INSUFFICIENT DATA FOR: {company_name}\n\n"
+                                   f"**Status**: REQUIRES MANUAL REVIEW\n\n"
+                                   f"**Reason**: Only {total_results} data points found during search.\n\n"
+                                   f"**Possible Causes**:\n"
+                                   f"- Company name misspelled or incorrect\n"
+                                   f"- Company does not exist or is not publicly known\n"
+                                   f"- Company is too small/private for public data\n"
+                                   f"- Company operates under a different legal name\n\n"
+                                   f"**Recommended Action**: Verify company information manually before proceeding with vetting.",
+                "company_name": company_name,
+                "data_sources_checked": total_results,
+                "processed": True
+            },
+            current_step="insufficient_data"
+        )
+    
     # Initialize state
     initial_state = VettingState(
         company_name=company_name,
@@ -313,4 +356,13 @@ def run_vetting_analysis(company_name: str, raw_data: Dict[str, Any]) -> Dict[st
         return final_state
     except Exception as e:
         print(f"❌ Error in workflow execution: {str(e)}")
+        # Return error state
+        initial_state["final_report"] = {
+            "executive_summary": f"## ❌ ERROR DURING ANALYSIS\n\n**Error**: {str(e)}\n\n**Recommendation**: Check API keys and try again.",
+            "company_name": company_name,
+            "data_sources_checked": 0,
+            "processed": False,
+            "error": str(e)
+        }
+        initial_state["current_step"] = "error"
         return initial_state
