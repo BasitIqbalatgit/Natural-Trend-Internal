@@ -67,36 +67,194 @@ def search_company_comprehensive(company_name: str) -> Dict[str, Any]:
         print(f"Error in comprehensive search: {str(e)}")
         return results
 
-def search_executives(company_name: str, executive_names: List[str] = None) -> Dict[str, List]:
+def search_executive_background(executive_name: str, company_name: str) -> Dict[str, List]:
     """
-    Search for information about company executives
+    Comprehensive background check on a specific executive
+    Searches for: legal issues, scandals, controversies, social media
     """
-    executives_info = {}
+    exec_data = {
+        "name": executive_name,
+        "scandals_controversies": [],
+        "legal_issues": [],
+        "social_media": [],
+        "general_info": []
+    }
     
     try:
-        # If no specific executives provided, search for company leadership
-        if not executive_names:
-            exec_search = tavily_client.search(
-                query=f"{company_name} CEO executives leadership team",
-                search_depth="basic",
-                max_results=5
-            )
-            executives_info["leadership_overview"] = exec_search.get("results", [])
-        else:
-            # Search for specific executives
-            for exec_name in executive_names:
-                exec_results = tavily_client.search(
-                    query=f"{exec_name} {company_name} scandal controversy misconduct",
-                    search_depth="advanced",
-                    max_results=5
-                )
-                executives_info[exec_name] = exec_results.get("results", [])
+        print(f"   🔍 Investigating: {executive_name}")
         
-        return executives_info
+        # 1. General information
+        general_results = tavily_client.search(
+            query=f'"{executive_name}" {company_name} CEO executive biography',
+            search_depth="basic",
+            max_results=3
+        )
+        exec_data["general_info"] = general_results.get("results", [])
+        
+        # 2. Scandals and controversies
+        scandal_results = tavily_client.search(
+            query=f'"{executive_name}" {company_name} scandal controversy misconduct allegations',
+            search_depth="advanced",
+            max_results=8
+        )
+        exec_data["scandals_controversies"] = scandal_results.get("results", [])
+        
+        # 3. Legal issues (criminal, civil, regulatory)
+        legal_results = tavily_client.search(
+            query=f'"{executive_name}" lawsuit arrest charges indictment fraud criminal investigation SEC',
+            search_depth="advanced",
+            max_results=8
+        )
+        exec_data["legal_issues"] = legal_results.get("results", [])
+        
+        # 4. Social media reputation
+        social_results = tavily_client.search(
+            query=f'"{executive_name}" {company_name} twitter controversy reddit scandal',
+            search_depth="basic",
+            max_results=5
+        )
+        exec_data["social_media"] = social_results.get("results", [])
+        
+        # Filter for relevance
+        exec_data["scandals_controversies"] = filter_irrelevant_results(
+            exec_data["scandals_controversies"], 
+            executive_name
+        )
+        exec_data["legal_issues"] = filter_irrelevant_results(
+            exec_data["legal_issues"], 
+            executive_name
+        )
+        
+        total_findings = (
+            len(exec_data["scandals_controversies"]) + 
+            len(exec_data["legal_issues"]) +
+            len(exec_data["social_media"])
+        )
+        
+        if total_findings > 0:
+            print(f"   ⚠️  Found {total_findings} items about {executive_name}")
+        else:
+            print(f"   ✅ No negative information found for {executive_name}")
+        
+        return exec_data
         
     except Exception as e:
-        print(f"Error searching executives: {str(e)}")
-        return executives_info
+        print(f"   ❌ Error investigating {executive_name}: {str(e)}")
+        return exec_data
+
+def search_executives(company_name: str, executive_names: List[str] = None) -> Dict[str, Any]:
+    """
+    Comprehensive executive background checks
+    If no names provided, searches for CEO and C-suite
+    """
+    executives_data = {
+        "leadership_overview": [],
+        "executives_investigated": {},
+        "total_executives": 0,
+        "negative_findings_count": 0
+    }
+    
+    try:
+        print("👔 Starting executive background checks...")
+        
+        # Step 1: Find company leadership if not provided
+        if not executive_names:
+            print("   🔍 Identifying company executives...")
+            leadership_search = tavily_client.search(
+                query=f"{company_name} CEO CFO COO executives leadership management team board",
+                search_depth="advanced",
+                max_results=10
+            )
+            executives_data["leadership_overview"] = filter_irrelevant_results(
+                leadership_search.get("results", []),
+                company_name
+            )
+            
+            # Use LLM to extract executive names from results
+            executive_names = extract_executive_names_from_results(
+                company_name,
+                executives_data["leadership_overview"]
+            )
+        
+        # Step 2: Deep dive on each executive
+        if executive_names:
+            print(f"   📋 Investigating {len(executive_names)} executives...")
+            for exec_name in executive_names[:5]:  # Limit to top 5
+                exec_data = search_executive_background(exec_name, company_name)
+                executives_data["executives_investigated"][exec_name] = exec_data
+                
+                # Count negative findings
+                negative_count = (
+                    len(exec_data.get("scandals_controversies", [])) +
+                    len(exec_data.get("legal_issues", []))
+                )
+                executives_data["negative_findings_count"] += negative_count
+            
+            executives_data["total_executives"] = len(executive_names)
+        
+        print(f"   ✅ Executive checks complete: {executives_data['total_executives']} executives, {executives_data['negative_findings_count']} negative findings")
+        return executives_data
+        
+    except Exception as e:
+        print(f"   ❌ Error in executive search: {str(e)}")
+        return executives_data
+
+def extract_executive_names_from_results(company_name: str, search_results: List[Dict]) -> List[str]:
+    """
+    Use LLM to extract executive names from search results
+    Returns list of executive names
+    """
+    from openai import OpenAI
+    
+    if not os.getenv("OPENAI_API_KEY") or not search_results:
+        return []
+    
+    try:
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        
+        # Compile text from search results
+        text_content = ""
+        for result in search_results[:5]:
+            text_content += f"Title: {result.get('title', '')}\n"
+            text_content += f"Content: {result.get('content', '')[:300]}\n\n"
+        
+        extraction_prompt = f"""Extract the names of executives (CEO, CFO, COO, President, etc.) from this text about {company_name}.
+
+Text:
+{text_content}
+
+Return ONLY a JSON array of executive names with their titles, like this:
+["John Doe (CEO)", "Jane Smith (CFO)", "Bob Johnson (COO)"]
+
+If no executives found, return: []
+Be strict: only return names that are clearly identified as executives of {company_name}."""
+
+        response = client.chat.completions.create(
+            model="gpt-4-turbo-preview",
+            messages=[
+                {"role": "system", "content": "You extract executive names from text. Return only valid JSON array."},
+                {"role": "user", "content": extraction_prompt}
+            ],
+            temperature=0.1,
+            max_tokens=200
+        )
+        
+        import json
+        names_json = response.choices[0].message.content.strip()
+        # Remove markdown code blocks if present
+        if "```" in names_json:
+            names_json = names_json.split("```")[1].replace("json", "").strip()
+        
+        executive_names = json.loads(names_json)
+        
+        if executive_names:
+            print(f"   ✅ Identified executives: {', '.join(executive_names)}")
+        
+        return executive_names
+        
+    except Exception as e:
+        print(f"   ⚠️  Could not extract executive names: {str(e)}")
+        return []
 
 def get_recent_news(company_name: str, days: int = 90) -> List[Dict]:
     """

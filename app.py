@@ -288,7 +288,7 @@ if st.session_state.vetting_complete and st.session_state.vetting_results:
         st.metric("Current Step", results.get('current_step', 'N/A'))
     
     # Detailed Sections
-    tab1, tab2, tab3, tab4 = st.tabs(["🔍 Risk Analysis", "✅ P&G Questions", "📰 Data Sources", "📄 PDF Report"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔍 Risk Analysis", "✅ P&G Questions", "👔 Executive Checks", "📰 Data Sources", "📄 PDF Report"])
     
     with tab1:
         st.markdown("### ⚠️ Detailed Risk Analysis")
@@ -311,6 +311,61 @@ if st.session_state.vetting_complete and st.session_state.vetting_results:
             st.info("P&G questions not yet answered.")
     
     with tab3:
+        st.markdown("### 👔 Executive Background Checks")
+        raw_data = results.get('raw_data', {})
+        exec_data = raw_data.get('executives', {})
+        
+        total_execs = exec_data.get('total_executives', 0)
+        negative_findings = exec_data.get('negative_findings_count', 0)
+        
+        # Summary metrics
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Executives Investigated", total_execs)
+        with col2:
+            st.metric("Negative Findings", negative_findings, delta=None if negative_findings == 0 else -negative_findings)
+        with col3:
+            status = "✅ CLEAN" if negative_findings == 0 else "⚠️ ISSUES FOUND"
+            st.metric("Status", status)
+        
+        st.markdown("---")
+        
+        # Detailed executive information
+        executives_investigated = exec_data.get('executives_investigated', {})
+        
+        if executives_investigated:
+            for exec_name, exec_info in executives_investigated.items():
+                with st.expander(f"👤 {exec_name}", expanded=negative_findings > 0):
+                    scandals = exec_info.get('scandals_controversies', [])
+                    legal = exec_info.get('legal_issues', [])
+                    social = exec_info.get('social_media', [])
+                    
+                    if not scandals and not legal:
+                        st.success(f"✅ No negative information found for {exec_name}")
+                    else:
+                        if scandals:
+                            st.markdown("#### 🚨 Scandals & Controversies")
+                            for idx, item in enumerate(scandals, 1):
+                                st.markdown(f"**{idx}. {item.get('title', 'N/A')}**")
+                                st.write(f"📎 {item.get('url', 'N/A')}")
+                                st.write(f"📝 {item.get('content', 'N/A')[:200]}...")
+                                st.markdown("---")
+                        
+                        if legal:
+                            st.markdown("#### ⚖️ Legal Issues")
+                            for idx, item in enumerate(legal, 1):
+                                st.markdown(f"**{idx}. {item.get('title', 'N/A')}**")
+                                st.write(f"📎 {item.get('url', 'N/A')}")
+                                st.write(f"📝 {item.get('content', 'N/A')[:200]}...")
+                                st.markdown("---")
+                    
+                    if social:
+                        st.markdown("#### 💬 Social Media Mentions")
+                        st.write(f"Found {len(social)} social media mentions")
+        else:
+            st.info("No executive information available. Leadership identification may have failed or no executives found.")
+    
+    with tab4:
         st.markdown("### 📰 Data Sources Summary")
         raw_data = results.get('raw_data', {})
         
@@ -348,7 +403,7 @@ if st.session_state.vetting_complete and st.session_state.vetting_results:
                 if results:
                     st.write(f"**{platform.capitalize()}:** {len(results)} mentions")
     
-    with tab4:
+    with tab5:
         st.markdown("### 📄 Download PDF Report")
         
         if st.session_state.pdf_path and os.path.exists(st.session_state.pdf_path):

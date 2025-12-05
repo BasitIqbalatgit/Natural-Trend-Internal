@@ -66,3 +66,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Generated Reports (should not be in version control)
+reports/
+*.pdf

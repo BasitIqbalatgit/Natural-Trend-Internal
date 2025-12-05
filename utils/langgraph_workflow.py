@@ -132,7 +132,26 @@ def analyze_risks_node(state: VettingState) -> VettingState:
     for item in raw_data.get('comprehensive_search', {}).get('legal_regulatory', []):
         negative_content.append(f"LEGAL: {item.get('title', '')} - {item.get('content', '')[:200]}")
     
-    negative_text = "\n\n".join(negative_content[:15])
+    # CRITICAL: Executive background issues
+    exec_data = raw_data.get('executives', {})
+    exec_negative_findings = exec_data.get('negative_findings_count', 0)
+    
+    if exec_negative_findings > 0:
+        negative_content.append(f"\n🚨 EXECUTIVE ISSUES FOUND: {exec_negative_findings} negative items about company leadership\n")
+        
+        for exec_name, exec_info in exec_data.get('executives_investigated', {}).items():
+            scandals = exec_info.get('scandals_controversies', [])
+            legal = exec_info.get('legal_issues', [])
+            
+            if scandals:
+                for item in scandals[:3]:
+                    negative_content.append(f"EXECUTIVE ({exec_name}): {item.get('title', '')} - {item.get('content', '')[:150]}")
+            
+            if legal:
+                for item in legal[:3]:
+                    negative_content.append(f"EXECUTIVE LEGAL ({exec_name}): {item.get('title', '')} - {item.get('content', '')[:150]}")
+    
+    negative_text = "\n\n".join(negative_content[:20])  # Increased limit to include executive issues
     
     risk_analysis_prompt = f"""
     You are a corporate risk assessment expert for P&G brand safety compliance.
