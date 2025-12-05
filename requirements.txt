@@ -1,26 +1,26 @@
 # Core Framework
-streamlit==1.28.0
-python-dotenv==1.0.0
+streamlit>=1.39.0
+python-dotenv>=1.0.0
 
 # AI & NLP
-openai==1.6.1
-langchain==0.1.0
-langchain-openai==0.0.2
-langgraph==0.0.20
-langchain-community==0.0.10
+openai>=1.54.0
+langchain>=0.3.0
+langchain-openai>=0.2.0
+langgraph>=0.2.0
+langchain-community>=0.3.0
 
 # Web Search & Data Collection
-tavily-python==0.5.0
-requests==2.31.0
-beautifulsoup4==4.12.2
+tavily-python>=0.5.0
+requests>=2.32.0
+beautifulsoup4>=4.12.0
 
 # Data Processing
-pandas==2.1.3
-numpy==1.26.0
+pandas>=2.2.0
+numpy>=1.26.0
 
 # PDF Generation
-reportlab==4.0.7
-pypdf2==3.0.1
+reportlab>=4.2.0
+pypdf2>=3.0.0
 
 # Utilities
-pydantic==2.5.0
+pydantic>=2.9.0
