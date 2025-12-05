@@ -150,6 +150,108 @@ def estimate_token_cost(total_results: int) -> str:
     else:
         return "High (~$0.07-0.12)"
 
+def llm_verify_company_match(company_name: str, search_results: Dict[str, Any]) -> Tuple[bool, str, str]:
+    """
+    Use LLM to verify that:
+    1. Search results are actually about the input company name
+    2. The input is indeed a company, not a person
+    Returns: (is_valid, detected_company_name, message)
+    """
+    from openai import OpenAI
+    
+    if not os.getenv("OPENAI_API_KEY"):
+        return True, company_name, ""  # Skip if no API key
+    
+    try:
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        
+        # Gather sample titles from search results
+        titles = []
+        for result in search_results.get('comprehensive_search', {}).get('general_search', [])[:5]:
+            titles.append(result.get('title', ''))
+        for result in search_results.get('comprehensive_search', {}).get('news_search', [])[:3]:
+            titles.append(result.get('title', ''))
+        
+        if not titles:
+            return False, "", "No search results to verify"
+        
+        titles_text = "\n".join([f"- {t}" for t in titles if t])
+        
+        verification_prompt = f"""You are a data verification expert. Analyze if the search results match the input query.
+
+INPUT QUERY: "{company_name}"
+
+SEARCH RESULT TITLES:
+{titles_text}
+
+Answer these questions:
+1. Are these search results about a COMPANY or about a PERSON?
+2. If it's a company, what is the EXACT company name from the results?
+3. Does the company name in results MATCH the input query "{company_name}"?
+4. If it's different, what company are the results actually about?
+
+Respond in this exact format:
+TYPE: [COMPANY or PERSON]
+EXACT_NAME: [exact company name from results or "N/A"]
+MATCH: [YES or NO]
+ACTUAL_SUBJECT: [what the results are actually about]
+CONFIDENCE: [HIGH, MEDIUM, or LOW]
+
+Be very strict. If the results are about a different company or person, say NO for MATCH."""
+
+        response = client.chat.completions.create(
+            model="gpt-4-turbo-preview",
+            messages=[
+                {"role": "system", "content": "You are a strict data verification assistant. Your job is to prevent false matches and hallucinations."},
+                {"role": "user", "content": verification_prompt}
+            ],
+            temperature=0.1,
+            max_tokens=300
+        )
+        
+        verification = response.choices[0].message.content
+        
+        # Parse the response
+        is_company = "TYPE: COMPANY" in verification
+        is_match = "MATCH: YES" in verification
+        
+        # Extract actual company name if different
+        detected_name = company_name
+        for line in verification.split('\n'):
+            if line.startswith('EXACT_NAME:'):
+                name = line.replace('EXACT_NAME:', '').strip()
+                if name and name != "N/A":
+                    detected_name = name
+            if line.startswith('ACTUAL_SUBJECT:'):
+                actual = line.replace('ACTUAL_SUBJECT:', '').strip()
+        
+        # Determine validity
+        if not is_company:
+            return False, "", (
+                f"❌ **'{company_name}' appears to be a PERSON, not a company.**\n\n"
+                f"**Search results are about an individual, not a business entity.**\n\n"
+                f"This tool is designed for vetting companies only. Please enter a company name."
+            )
+        
+        if not is_match:
+            return False, detected_name, (
+                f"⚠️ **Search Results Mismatch Detected!**\n\n"
+                f"**You searched for:** '{company_name}'\n"
+                f"**Results are about:** '{detected_name}'\n\n"
+                f"**This suggests:**\n"
+                f"- The company name you entered may not exist\n"
+                f"- The search engine found a similar but different company\n"
+                f"- You need to enter the EXACT legal company name\n\n"
+                f"**Action Required:** Enter the exact company name or verify spelling."
+            )
+        
+        return True, detected_name, ""
+        
+    except Exception as e:
+        print(f"LLM verification error: {str(e)}")
+        # On error, allow to proceed but log it
+        return True, company_name, ""
+
 def validate_before_analysis(company_name: str, search_results: Dict[str, Any]) -> Tuple[bool, str]:
     """
     Comprehensive validation before proceeding with expensive AI analysis
@@ -169,6 +271,11 @@ def validate_before_analysis(company_name: str, search_results: Dict[str, Any]) 
     results_valid, results_msg = quick_company_validation(search_results)
     if not results_valid:
         return False, results_msg
+    
+    # LLM-based verification to prevent hallucination and name mismatch
+    llm_valid, detected_name, llm_msg = llm_verify_company_match(company_name, search_results)
+    if not llm_valid:
+        return False, llm_msg
     
     # If name is possibly personal but we have some results, warn user
     if not name_valid and error_type == "possible_personal_name":

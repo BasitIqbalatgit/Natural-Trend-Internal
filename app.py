@@ -205,26 +205,19 @@ if vet_button:
                 # Collect all data
                 raw_data = aggregate_all_data(company_name)
                 
-                # Check if company data was found
-                if not raw_data.get('data_found', False):
-                    st.warning(f"⚠️ **Warning:** No or very limited data found for '{company_name}'.")
-                    st.info("""
-                    **Possible reasons:**
-                    - Company name may be misspelled
-                    - Company may not exist or be very small/private
-                    - Company may operate under a different legal name
-                    
-                    **Suggestions:**
-                    - Try the full legal company name
-                    - Check for common variations or abbreviations
-                    - Verify the company exists before proceeding
-                    """)
-                    
-                    # Ask user if they want to continue
-                    col1, col2, col3 = st.columns([1, 1, 1])
-                    with col2:
-                        if not st.button("🔄 Continue Anyway", key="continue_no_data"):
-                            st.stop()
+                progress_bar.progress(25)
+                status_text.text(f"🔍 Verifying search results match '{company_name}'...")
+                time.sleep(0.3)
+                
+                # CRITICAL: Validate that search results actually match the company name
+                should_proceed, validation_msg = validate_before_analysis(company_name, raw_data)
+                
+                if not should_proceed:
+                    progress_bar.progress(0)
+                    status_text.text("")
+                    st.error(validation_msg)
+                    st.info("💡 **Tip:** Always enter the exact, full company name to avoid mismatches.")
+                    st.stop()
                 
                 progress_bar.progress(30)
                 status_text.text(f"✅ Step 1/4: Data collection complete! ({raw_data.get('total_results', 0)} results found)")
