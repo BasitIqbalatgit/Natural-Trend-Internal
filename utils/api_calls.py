@@ -155,6 +155,54 @@ def search_social_media_specific(company_name: str) -> Dict[str, Any]:
         print(f"Error in social media search: {str(e)}")
         return social_data
 
+def validate_result_relevance(result: Dict[str, Any], company_name: str) -> bool:
+    """
+    Validate that a search result actually mentions the company
+    Returns True if relevant, False otherwise
+    """
+    if not result:
+        return False
+    
+    # Get title and content
+    title = result.get('title', '').lower()
+    content = result.get('content', '').lower()
+    url = result.get('url', '').lower()
+    
+    # Combine all text
+    full_text = f"{title} {content} {url}"
+    
+    # Check if company name appears in the result
+    company_lower = company_name.lower()
+    company_words = company_lower.split()
+    
+    # Must contain at least the main company words
+    # For "Microsoft Corporation", check if "microsoft" appears
+    # For "Goldman Sachs", check if both "goldman" and "sachs" appear
+    
+    if len(company_words) == 1:
+        # Single word company name must appear
+        return company_lower in full_text
+    else:
+        # Multi-word: at least 50% of words must appear
+        matches = sum(1 for word in company_words if len(word) > 2 and word in full_text)
+        return matches >= len(company_words) * 0.5
+
+def filter_irrelevant_results(results: List[Dict], company_name: str) -> List[Dict]:
+    """
+    Filter out results that don't actually mention the company
+    """
+    relevant_results = []
+    for result in results:
+        if validate_result_relevance(result, company_name):
+            relevant_results.append(result)
+    
+    if len(results) > 0:
+        filtered_count = len(results) - len(relevant_results)
+        if filtered_count > 0:
+            print(f"🔍 Filtered out {filtered_count} irrelevant results")
+    
+    return relevant_results
+
 def aggregate_all_data(company_name: str) -> Dict[str, Any]:
     """
     Aggregate all available data for comprehensive vetting
@@ -165,14 +213,44 @@ def aggregate_all_data(company_name: str) -> Dict[str, Any]:
     if not os.getenv("TAVILY_API_KEY"):
         raise ValueError("TAVILY_API_KEY not found in environment variables")
     
+    # Get raw data
+    comprehensive = search_company_comprehensive(company_name)
+    recent = get_recent_news(company_name)
+    social = search_social_media_specific(company_name)
+    execs = search_executives(company_name)
+    
+    # Filter for relevance
+    print("🔍 Validating result relevance...")
+    comprehensive["general_search"] = filter_irrelevant_results(
+        comprehensive.get("general_search", []), 
+        company_name
+    )
+    comprehensive["news_search"] = filter_irrelevant_results(
+        comprehensive.get("news_search", []), 
+        company_name
+    )
+    comprehensive["legal_regulatory"] = filter_irrelevant_results(
+        comprehensive.get("legal_regulatory", []), 
+        company_name
+    )
+    recent = filter_irrelevant_results(recent, company_name)
+    
+    # Filter social media
+    for platform in social:
+        social[platform] = filter_irrelevant_results(
+            social.get(platform, []), 
+            company_name
+        )
+    
     all_data = {
         "company_name": company_name,
-        "comprehensive_search": search_company_comprehensive(company_name),
-        "recent_news": get_recent_news(company_name),
-        "social_media": search_social_media_specific(company_name),
-        "executives": search_executives(company_name),
+        "comprehensive_search": comprehensive,
+        "recent_news": recent,
+        "social_media": social,
+        "executives": execs,
         "data_found": False,
-        "total_results": 0
+        "total_results": 0,
+        "relevant_results": 0
     }
     
     # Calculate total results found
@@ -185,12 +263,13 @@ def aggregate_all_data(company_name: str) -> Dict[str, Any]:
     )
     
     all_data["total_results"] = total_results
+    all_data["relevant_results"] = total_results
     all_data["data_found"] = total_results > 0
     
     # Warn if no data found
     if total_results == 0:
-        print(f"⚠️ WARNING: No data found for company '{company_name}'. Company may not exist or name may be incorrect.")
+        print(f"⚠️ WARNING: No relevant data found for company '{company_name}'. Company may not exist or name may be incorrect.")
     else:
-        print(f"✅ Found {total_results} data points for {company_name}")
+        print(f"✅ Found {total_results} relevant data points for {company_name}")
     
     return all_data
