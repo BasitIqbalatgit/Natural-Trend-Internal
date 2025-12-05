@@ -335,33 +335,68 @@ if st.session_state.vetting_complete and st.session_state.vetting_results:
         
         if executives_investigated:
             for exec_name, exec_info in executives_investigated.items():
-                with st.expander(f"👤 {exec_name}", expanded=negative_findings > 0):
-                    scandals = exec_info.get('scandals_controversies', [])
-                    legal = exec_info.get('legal_issues', [])
-                    social = exec_info.get('social_media', [])
+                summary = exec_info.get('summary', {})
+                positive_count = summary.get('positive_count', 0)
+                negative_count = summary.get('negative_count', 0)
+                neutral_count = summary.get('neutral_count', 0)
+                
+                # Determine expander label with status
+                if negative_count > 0:
+                    label = f"👤 {exec_name} ⚠️ {negative_count} NEGATIVE"
+                    expanded = True
+                elif positive_count > 0:
+                    label = f"👤 {exec_name} ✅ {positive_count} positive"
+                    expanded = False
+                else:
+                    label = f"👤 {exec_name} ℹ️ {neutral_count} neutral"
+                    expanded = False
+                
+                with st.expander(label, expanded=expanded):
+                    # Summary metrics for this executive
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("✅ Positive", positive_count)
+                    with col2:
+                        st.metric("⚠️ Negative", negative_count)
+                    with col3:
+                        st.metric("ℹ️ Neutral", neutral_count)
                     
-                    if not scandals and not legal:
-                        st.success(f"✅ No negative information found for {exec_name}")
-                    else:
-                        if scandals:
-                            st.markdown("#### 🚨 Scandals & Controversies")
-                            for idx, item in enumerate(scandals, 1):
-                                st.markdown(f"**{idx}. {item.get('title', 'N/A')}**")
-                                st.write(f"📎 {item.get('url', 'N/A')}")
-                                st.write(f"📝 {item.get('content', 'N/A')[:200]}...")
-                                st.markdown("---")
+                    st.markdown("---")
+                    
+                    # Show NEGATIVE items first (most important)
+                    negative_items = exec_info.get('negative', [])
+                    if negative_items:
+                        st.markdown("### 🚨 NEGATIVE FINDINGS")
+                        st.error(f"**WARNING:** {len(negative_items)} negative items found about {exec_name}")
                         
-                        if legal:
-                            st.markdown("#### ⚖️ Legal Issues")
-                            for idx, item in enumerate(legal, 1):
-                                st.markdown(f"**{idx}. {item.get('title', 'N/A')}**")
-                                st.write(f"📎 {item.get('url', 'N/A')}")
+                        for idx, item in enumerate(negative_items, 1):
+                            with st.container():
+                                st.markdown(f"#### ⚠️ {idx}. {item.get('title', 'N/A')}")
+                                st.write(f"🔗 **Source:** {item.get('url', 'N/A')}")
+                                st.write(f"📝 **Summary:** {item.get('content', 'N/A')[:250]}...")
+                                st.markdown("---")
+                    else:
+                        st.success(f"✅ No negative information found for {exec_name}")
+                    
+                    # Show POSITIVE items (achievements, awards)
+                    positive_items = exec_info.get('positive', [])
+                    if positive_items:
+                        st.markdown("### ✅ POSITIVE HIGHLIGHTS")
+                        
+                        for idx, item in enumerate(positive_items, 1):
+                            with st.container():
+                                st.markdown(f"#### ⭐ {idx}. {item.get('title', 'N/A')}")
+                                st.write(f"🔗 {item.get('url', 'N/A')}")
                                 st.write(f"📝 {item.get('content', 'N/A')[:200]}...")
                                 st.markdown("---")
                     
-                    if social:
-                        st.markdown("#### 💬 Social Media Mentions")
-                        st.write(f"Found {len(social)} social media mentions")
+                    # Show NEUTRAL items (general info) - collapsed
+                    neutral_items = exec_info.get('neutral', [])
+                    if neutral_items:
+                        with st.expander(f"ℹ️ General Information ({len(neutral_items)} items)"):
+                            for idx, item in enumerate(neutral_items[:5], 1):
+                                st.markdown(f"**{idx}. {item.get('title', 'N/A')}**")
+                                st.write(f"🔗 {item.get('url', 'N/A')}")
         else:
             st.info("No executive information available. Leadership identification may have failed or no executives found.")
     

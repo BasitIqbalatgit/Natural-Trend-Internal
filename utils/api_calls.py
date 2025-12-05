@@ -67,17 +67,97 @@ def search_company_comprehensive(company_name: str) -> Dict[str, Any]:
         print(f"Error in comprehensive search: {str(e)}")
         return results
 
-def search_executive_background(executive_name: str, company_name: str) -> Dict[str, List]:
+def classify_executive_information(executive_name: str, findings: List[Dict]) -> Dict[str, List]:
+    """
+    Use LLM to classify executive information as positive, neutral, or negative
+    Returns: {"positive": [...], "neutral": [...], "negative": [...]}
+    """
+    from openai import OpenAI
+    
+    if not os.getenv("OPENAI_API_KEY") or not findings:
+        return {"positive": [], "neutral": [], "negative": []}
+    
+    try:
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        
+        classified = {"positive": [], "neutral": [], "negative": []}
+        
+        # Classify each finding
+        for finding in findings[:10]:  # Limit to prevent token overflow
+            title = finding.get('title', '')
+            content = finding.get('content', '')[:300]
+            
+            if not title and not content:
+                continue
+            
+            classification_prompt = f"""Analyze this information about {executive_name}:
+
+Title: {title}
+Content: {content}
+
+Classify as:
+- POSITIVE: Awards, achievements, positive leadership, good reviews, charity work
+- NEGATIVE: Scandals, crimes, lawsuits, misconduct, fraud, violations, controversies
+- NEUTRAL: General information, job announcements, neutral facts
+
+Also verify: Is this actually about {executive_name} (the person)?
+
+Respond ONLY with:
+CLASSIFICATION: [POSITIVE/NEGATIVE/NEUTRAL]
+ABOUT_PERSON: [YES/NO]
+REASON: [one sentence why]"""
+
+            response = client.chat.completions.create(
+                model="gpt-4-turbo-preview",
+                messages=[
+                    {"role": "system", "content": "You classify executive information accurately."},
+                    {"role": "user", "content": classification_prompt}
+                ],
+                temperature=0.1,
+                max_tokens=100
+            )
+            
+            result = response.choices[0].message.content
+            
+            # Parse response
+            is_about_person = "ABOUT_PERSON: YES" in result
+            
+            if not is_about_person:
+                continue  # Skip if not about the person
+            
+            # Add to appropriate category
+            if "CLASSIFICATION: POSITIVE" in result:
+                classified["positive"].append(finding)
+            elif "CLASSIFICATION: NEGATIVE" in result:
+                classified["negative"].append(finding)
+            else:
+                classified["neutral"].append(finding)
+        
+        return classified
+        
+    except Exception as e:
+        print(f"   ⚠️ Classification error: {str(e)}")
+        # On error, put everything in neutral
+        return {"positive": [], "neutral": findings, "negative": []}
+
+def search_executive_background(executive_name: str, company_name: str) -> Dict[str, Any]:
     """
     Comprehensive background check on a specific executive
     Searches for: legal issues, scandals, controversies, social media
+    Returns classified information (positive/negative/neutral)
     """
     exec_data = {
         "name": executive_name,
-        "scandals_controversies": [],
-        "legal_issues": [],
-        "social_media": [],
-        "general_info": []
+        "all_findings": [],
+        "positive": [],
+        "negative": [],
+        "neutral": [],
+        "summary": {
+            "total_findings": 0,
+            "positive_count": 0,
+            "negative_count": 0,
+            "neutral_count": 0
+        }
     }
     
     try:
@@ -85,11 +165,10 @@ def search_executive_background(executive_name: str, company_name: str) -> Dict[
         
         # 1. General information
         general_results = tavily_client.search(
-            query=f'"{executive_name}" {company_name} CEO executive biography',
+            query=f'"{executive_name}" {company_name} CEO executive biography achievements',
             search_depth="basic",
-            max_results=3
+            max_results=5
         )
-        exec_data["general_info"] = general_results.get("results", [])
         
         # 2. Scandals and controversies
         scandal_results = tavily_client.search(
@@ -97,7 +176,6 @@ def search_executive_background(executive_name: str, company_name: str) -> Dict[
             search_depth="advanced",
             max_results=8
         )
-        exec_data["scandals_controversies"] = scandal_results.get("results", [])
         
         # 3. Legal issues (criminal, civil, regulatory)
         legal_results = tavily_client.search(
@@ -105,36 +183,40 @@ def search_executive_background(executive_name: str, company_name: str) -> Dict[
             search_depth="advanced",
             max_results=8
         )
-        exec_data["legal_issues"] = legal_results.get("results", [])
         
-        # 4. Social media reputation
-        social_results = tavily_client.search(
-            query=f'"{executive_name}" {company_name} twitter controversy reddit scandal',
-            search_depth="basic",
-            max_results=5
-        )
-        exec_data["social_media"] = social_results.get("results", [])
-        
-        # Filter for relevance
-        exec_data["scandals_controversies"] = filter_irrelevant_results(
-            exec_data["scandals_controversies"], 
-            executive_name
-        )
-        exec_data["legal_issues"] = filter_irrelevant_results(
-            exec_data["legal_issues"], 
-            executive_name
+        # Combine all findings
+        all_findings = (
+            general_results.get("results", []) +
+            scandal_results.get("results", []) +
+            legal_results.get("results", [])
         )
         
-        total_findings = (
-            len(exec_data["scandals_controversies"]) + 
-            len(exec_data["legal_issues"]) +
-            len(exec_data["social_media"])
-        )
+        # Filter for relevance to the person
+        relevant_findings = filter_irrelevant_results(all_findings, executive_name)
         
-        if total_findings > 0:
-            print(f"   ⚠️  Found {total_findings} items about {executive_name}")
+        print(f"   📊 Found {len(relevant_findings)} relevant items, classifying...")
+        
+        # Classify findings as positive/negative/neutral
+        classified = classify_executive_information(executive_name, relevant_findings)
+        
+        exec_data["positive"] = classified["positive"]
+        exec_data["negative"] = classified["negative"]
+        exec_data["neutral"] = classified["neutral"]
+        exec_data["all_findings"] = relevant_findings
+        
+        exec_data["summary"] = {
+            "total_findings": len(relevant_findings),
+            "positive_count": len(classified["positive"]),
+            "negative_count": len(classified["negative"]),
+            "neutral_count": len(classified["neutral"])
+        }
+        
+        if exec_data["summary"]["negative_count"] > 0:
+            print(f"   ⚠️  Found {exec_data['summary']['negative_count']} NEGATIVE items about {executive_name}")
+        elif exec_data["summary"]["positive_count"] > 0:
+            print(f"   ✅ Found {exec_data['summary']['positive_count']} POSITIVE items about {executive_name}")
         else:
-            print(f"   ✅ No negative information found for {executive_name}")
+            print(f"   ℹ️  Found {exec_data['summary']['neutral_count']} NEUTRAL items about {executive_name}")
         
         return exec_data
         
@@ -183,11 +265,8 @@ def search_executives(company_name: str, executive_names: List[str] = None) -> D
                 exec_data = search_executive_background(exec_name, company_name)
                 executives_data["executives_investigated"][exec_name] = exec_data
                 
-                # Count negative findings
-                negative_count = (
-                    len(exec_data.get("scandals_controversies", [])) +
-                    len(exec_data.get("legal_issues", []))
-                )
+                # Count negative findings from summary
+                negative_count = exec_data.get("summary", {}).get("negative_count", 0)
                 executives_data["negative_findings_count"] += negative_count
             
             executives_data["total_executives"] = len(executive_names)
