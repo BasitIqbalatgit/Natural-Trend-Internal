@@ -40,10 +40,8 @@ This tool automatically:
 1. **Type the company name** in the text box
    - ✅ Good: "Microsoft Corporation", "Tesla", "Goldman Sachs"
    - ❌ Bad: "John Smith" (that's a person!), "MSFT" (use full name)
-2. **Choose search depth:**
-   - **Standard** = Fast (15-20 seconds)
-   - **Advanced** = Balanced (30-45 seconds) ← Recommended
-   - **Deep** = Thorough (60+ seconds)
+
+**Note:** All searches are automatically performed at Deep Search level for comprehensive analysis (60+ seconds).
 
 ### **Step 3: Optional - Add Executive Names**
 - If you want to check specific executives, add their names
@@ -91,17 +89,17 @@ Download a professional report to share with your team
 
 ## ⏱️ How Long Does It Take?
 
-| Search Type | Time Required | Data Points Analyzed |
-|-------------|---------------|---------------------|
-| **Standard** | 15-20 seconds | 30-50 sources |
-| **Advanced** | 30-45 seconds | 50-80 sources |
-| **Deep** | 60-90 seconds | 80-120 sources |
+**All analyses use Deep Search automatically:**
+- Time Required: 60-90 seconds
+- Data Points Analyzed: 80-120 sources
 
 **Total Process:**
 - Data Collection: 10-15 seconds
 - AI Analysis: 15-25 seconds
 - PDF Generation: 2-5 seconds
 - **Total: 30-60 seconds**
+
+**Note:** The system performs comprehensive Deep Search for all companies to ensure thorough vetting.
 
 ---
 
@@ -291,7 +289,6 @@ Download a professional report to share with your team
 
 ### **DO:**
 ✅ Always enter the **full legal company name**
-✅ Use **Advanced** search depth for important decisions
 ✅ **Review the PDF report** before making final decisions
 ✅ **Check executive backgrounds** if it's a small company
 ✅ **Verify sources** by clicking on citations

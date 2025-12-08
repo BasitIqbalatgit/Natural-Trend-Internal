@@ -111,25 +111,23 @@ The app will open in your browser at: `http://localhost:8501`
 1. **Enter Company Name**
    - Type the company you want to vet
 
-2. **Select Search Depth**
-   - Standard: Quick analysis (15-20 seconds)
-   - Advanced: Balanced (30-45 seconds) - **Recommended**
-   - Deep: Comprehensive (60+ seconds)
-
-3. **Optional: Add Executives**
+2. **Optional: Add Executives**
    - Specify executives to investigate
 
-4. **Click "Run Vetting Analysis"**
-   - Wait for the AI to complete analysis
+3. **Click "Run Vetting Analysis"**
+   - Wait for the AI to complete analysis (60+ seconds)
+   - All searches are performed at Deep Search level for comprehensive analysis
 
-5. **Review Results**
+4. **Review Results**
    - Executive Summary
    - Risk Analysis
    - P&G Compliance Answers
    - Data Sources
 
-6. **Download PDF Report**
+5. **Download PDF Report**
    - Professional audit-ready document
+
+**Note:** The system automatically performs Deep Search for all analyses to ensure comprehensive vetting.
 
 ## 🔧 Troubleshooting
 
@@ -245,7 +243,7 @@ Once installed:
 1. Run `streamlit run app.py`
 2. Test with a company (e.g., "Microsoft", "Tesla")
 3. Review the generated report
-4. Adjust search depth based on needs
+4. All analyses use Deep Search automatically for comprehensive results
 
 ---
 

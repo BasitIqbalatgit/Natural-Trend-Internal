@@ -133,22 +133,14 @@ with st.sidebar:
 # Main Content Area
 st.markdown("### 📝 Enter Company Information")
 
-col1, col2 = st.columns([3, 1])
+company_name = st.text_input(
+    "Company Name *",
+    placeholder="e.g., Microsoft, Tesla, etc.",
+    help="Enter the full legal name of the company to vet. All searches are performed at Deep Search level for comprehensive analysis."
+)
 
-with col1:
-    company_name = st.text_input(
-        "Company Name *",
-        placeholder="e.g., Microsoft, Tesla, etc.",
-        help="Enter the full legal name of the company to vet"
-    )
-
-with col2:
-    st.markdown("###")
-    search_depth = st.selectbox(
-        "Search Depth",
-        ["Standard", "Advanced", "Deep"],
-        index=1
-    )
+# Always use Deep search mode
+search_depth = "Deep"
 
 # Optional Executive Names
 with st.expander("🔍 Add Specific Executives to Investigate (Optional)"):

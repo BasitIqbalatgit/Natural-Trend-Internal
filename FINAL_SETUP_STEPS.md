@@ -36,12 +36,13 @@ streamlit run app.py
 ```
 
 ### Step 5: Test the System
-1. Browser should open automatically at `http://localhost:8502`
+1. Browser should open automatically at `http://localhost:8501`
 2. Enter a company name: **"Microsoft"** or **"Tesla"**
-3. Keep search depth as **"Advanced"**
-4. Click **"Run Vetting Analysis"**
-5. Wait 30-60 seconds for results
-6. Download the PDF report
+3. Click **"Run Vetting Analysis"**
+4. Wait 60+ seconds for results (Deep Search is automatic)
+5. Download the PDF report
+
+**Note:** All searches now use Deep Search automatically for comprehensive analysis.
 
 ## 🔍 What You Should See
 

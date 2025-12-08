@@ -106,11 +106,12 @@ http://localhost:8501
 
 ### **Basic Usage**
 1. **Enter Company Name**: Type the company you want to vet (e.g., "Tesla", "Microsoft")
-2. **Select Search Depth**: Choose Standard, Advanced, or Deep analysis
-3. **Optional**: Add specific executive names to investigate
-4. **Click "Run Vetting Analysis"**: Wait 30-60 seconds for complete analysis
-5. **Review Results**: Examine risk analysis, P&G compliance, and data sources
-6. **Download PDF**: Get professional audit-ready report
+2. **Optional**: Add specific executive names to investigate
+3. **Click "Run Vetting Analysis"**: Wait 30-60 seconds for complete analysis
+4. **Review Results**: Examine risk analysis, P&G compliance, and data sources
+5. **Download PDF**: Get professional audit-ready report
+
+**Note**: All searches are automatically performed at Deep Search level for comprehensive analysis.
 
 ### **Understanding Results**
 
@@ -254,9 +255,9 @@ mkdir reports
 ```
 
 ### **Performance Tips**
-- Use "Standard" search depth for faster results (15-20 seconds)
-- Use "Advanced" for balanced analysis (30-45 seconds)  
-- Use "Deep" only for critical assessments (60+ seconds)
+- All analyses use Deep Search for comprehensive vetting (60+ seconds)
+- Ensure stable internet connection for best results
+- Large companies may take slightly longer due to more data sources
 
 ---
 

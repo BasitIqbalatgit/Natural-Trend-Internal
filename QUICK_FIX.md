@@ -59,6 +59,8 @@ streamlit run app.py
 
 ## Verification
 
-The app should start at `http://localhost:8502` and you should see the interface without errors.
+The app should start at `http://localhost:8501` and you should see the interface without errors.
 
 Test with a company name like "Microsoft" or "Tesla" to verify it's working.
+
+**Note:** All analyses now use Deep Search automatically for comprehensive vetting.
