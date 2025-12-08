@@ -68,6 +68,19 @@ st.markdown("""
         border-left: 5px solid #dc3545;
         margin: 1rem 0;
     }
+    
+    /* Hide Streamlit menu, footer, and GitHub identity */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .viewerBadge_container__1QSob {display: none;}
+    .styles_viewerBadge__1yB5_ {display: none;}
+    button[title="View app source"] {display: none;}
+    .stDeployButton {display: none;}
+    
+    /* Alternative method to hide menu button */
+    [data-testid="stToolbar"] {display: none;}
+    [data-testid="manage-app-button"] {display: none;}
     </style>
 """, unsafe_allow_html=True)
 
